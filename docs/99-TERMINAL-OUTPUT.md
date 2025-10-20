@@ -1,146 +1,60 @@
-Actualicé docs/03-DATA-MODEL.md con la sección “Principales”: incluye los campos clave para users,   
-  children, events (con detalle de night_wake y referencia a parentEventId), plans, transcripts y los  
-  índices sugeridos. Indica si deseas describir esquemas secundarios o validaciones específicas.
+1. Actualicé docs/03-DATA-MODEL.md con la sección “Principales”: incluye los campos clave para users, children, events (con detalle de night_wake y referencia a parentEventId), plans, transcripts y los índices sugeridos. Indica si deseas describir esquemas secundarios o validaciones específicas.
 
+* I’m putting together a final response that highlights the documentation changes, including line numbers for key modifications in files like docs/03-DATA-MODEL.md and docs/04-API-SPEC.md. I’ll Sin pruebas; son cambios de docs.
 
-  I’m putting together a final response that highlights the documentation changes, including line      
-  numbers for key modifications in files like docs/03-DATA-MODEL.md and docs/04-API-SPEC.md. I’ll      
-  Sin pruebas; son cambios de docs.
+* I'm gathering details to highlight the project’s scaffolding using Next.js 15.5.6 with TypeScript, ESLint, and Tailwind CSS, noting key created directories like components/, lib/, and app/api/. I also want to mention turbopack usage, no tests ran, and suggest typical next steps for customization. Since precise line numbers aren’t guaranteed, I’m approximating references like package.json:8 to show where the Next.js version is set, aiming to keep the summary clear and helpful for the user. Listing key config files and base directories created, noting no tests have run yet, and suggesting next steps like running the dev server or linting.
 
+* Next.js Scaffold
 
-  I'm gathering details to highlight the project’s scaffolding using Next.js 15.5.6 with TypeScript,   
-  ESLint, and Tailwind CSS, noting key created directories like components/, lib/, and app/api/. I     
-  also want to mention turbopack usage, no tests ran, and suggest typical next steps for customization.
-  Since precise line numbers aren’t guaranteed, I’m approximating references like package.json:8 to    
-  show where the Next.js version is set, aiming to keep the summary clear and helpful for the user.    
+2. Generé la app Next.js 15 con TypeScript, ESLint y Turbopack (package.json:14) y mantuve la App Router por defecto.
 
-  listing key config files and base directories created, noting no tests have run yet, and suggesting  
-  next steps like running the dev server or linting.
+3. Tailwind 4 quedó configurado mediante PostCSS (postcss.config.mjs:1) y la importación global (app/globals.css:1).
 
+4. Creé los directorios base components/, lib/ y app/api/ para empezar a organizar UI, utilidades y endpoints.
 
-  • Next.js Scaffold
+* Sin pruebas: proyecto recién inicializado. Próximo paso natural:
 
-  - Generé la app Next.js 15 con TypeScript, ESLint y Turbopack (package.json:14) y mantuve la App     
-    Router por defecto.
-  - Tailwind 4 quedó configurado mediante PostCSS (postcss.config.mjs:1) y la importación global (app/ 
-    globals.css:1).
-  - Creé los directorios base components/, lib/ y app/api/ para empezar a organizar UI, utilidades     
-    y endpoints.
+# ToDo: Ejecutar npm run dev para verificar el arranque local
 
-  Sin pruebas: proyecto recién inicializado. Próximo paso natural: 1) ejecutar npm run dev para        
-  verificar el arranque local.
+* There is a lot here! I'll ensure existing docs are accounted for while adding key scripts like typecheck and check-env, tighten TypeScript settings with strict mode and path aliases, and set up Verify docs structure inclusion and adjust build script references if needed.
 
-  - Añade scripts npm: dev, build, start, lint, typecheck.
-  - TS estricto; paths para /lib, /components
-  .- Prettier y Husky (pre-commit: lint + typecheck).
-  Implementa un loader de variables de entorno con Zod (p.ej. lib/env.ts). Reglas:
-  - Rechaza build si falta cualquier secret obligatorio (Zoom, Drive, Mongo, NextAuth).
-  - No loguear valores; solo claves presentes/faltantes.
-  - Añade scripts/check-env.ts e intégralo a npm run build
+* I'm focusing on confirming that the environment validation script (npm run check-env) fails as expected without environment variables set, which helps ensure error messages only expose keys and outcomes.
 
+5. Base del proyecto lista con tooling estricto y verificación de entorno antes de compilar (eliminó allowJs; prettier.config.cjs:1 define la configuración base de Prettier y .husky/pre-commit:1 ejecuta npm run lint y npm run typecheck en cada commit).
 
-• There is a lot here! I'll ensure existing docs are accounted for while adding key scripts like       
-  typecheck and check-env, tighten TypeScript settings with strict mode and path aliases, and set up   
-    □ Verify docs structure inclusion and adjust build script references if needed.
+# ToDo: Ejecutar npm run lint y npm run typecheck y validar y corren con éxito.
 
+# ToDo: Ejecutar npm run check-env falla (como se esperaba) mientras no se definan variables de ZOOM, GOOGLE, MONGODB y NEXTAUTH.
 
-    I'm focusing on confirming that the environment validation script (npm run check-env) fails as       
-  expected without environment variables set, which helps ensure error messages only expose keys and   
-  outcomes.
+* I'm reviewing how CORS headers like Access-Control-Allow-Headers should dynamically echo request headers for security and compliance; also considering adding Access-Control-Allow-Credentials and proper handling of preflight OPTIONS responses. I'll check header application to all responses, verify imports and usage of NextResponse, and plan to run middleware tests next.
 
+* Middleware Security
 
-  Base del proyecto lista con tooling estricto y verificación de entorno antes de compilar.
-                                                                                                       
-    eliminó allowJs).
-  - prettier.config.cjs:1 define la configuración base de Prettier y .husky/pre-commit:1 ejecuta npm   
-    run lint y npm run typecheck en cada commit.
+6. Añadí middleware.ts:1 para aplicar CORS con allowlist (https://happy-dreamers.app + previews *.vercel.app) y devolver 403 si el Origin no es válido; maneja preflights OPTIONS y publica cabeceras CORS mínimas.
 
-  Entorno
+# ToDo: Actualizar PRODUCTION_ORIGINS en middleware.ts con los dominios reales (incluidas URLs de staging si aplica).
 
-  - lib/env.ts:3 carga los secretos críticos con Zod, cachea el resultado y expone un proxy seguro;    
-    lanza EnvValidationError únicamente con claves faltantes.
-  - scripts/check-env.ts:1 reutiliza ese loader para enumerar claves presentes y cortar la build si    
-    falta alguno; está enlazado vía npm run prebuild.
+7. lib/logger.ts ahora expone logging estructurado con Pino:
+    - Configura el nivel según entorno (production→info, test→silent, default→debug) y oculta campos sensibles (req.headers.authorization, req.body.password, user.email, user.phone).
+    - getCorrelationId toma el x-correlation-id de headers (objetos Headers o plain) y genera un UUID si falta.
+    - createRequestLogger produce un logger hijo por request con el correlation-id; childLogger(scope) ayuda a derivar loggers por componente/servicio y mantiene metadatos adicionales.
+    - logger expone el root logger por si se requiere el global.
 
-  Verificación
+8. Dependencias pino, pino-http y tipos instalados; npm run lint y npm run typecheck pasan.
 
-  - npm run lint y npm run typecheck completan correctamente.
-  - npm run check-env falla (como se esperaba) mientras no se definan ZOOM_WEBHOOK_SECRET,
-    GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY, MONGODB_URI y NEXTAUTH_SECRET.
+# ToDo: Integrar createRequestLogger en middleware/API routes para propagar el correlation-id a los handlers.
 
+* I'm weighing how to add unit tests for reconnection simulation since no testing framework is present yet. Using tsx to run Node's built-in node:test in TypeScript seems promising without adding heavy dependencies like vitest. I’m considering creating a tests/mongodb.test.ts with npm run test:mongodb running tsx --test tests/mongodb.test.ts, which should align with instructions and work nicely for the user.
 
-    I'm reviewing how CORS headers like Access-Control-Allow-Headers should dynamically echo request     
-  headers for security and compliance; also considering adding Access-Control-Allow-Credentials and    
-  proper handling of preflight OPTIONS responses. I'll check header application to all responses,      
-  verify imports and usage of NextResponse, and plan to run middleware tests next.
+* I'm figuring out how to add mongodb and vitest properly—editing package.json to include them and adding a test script. Since updating package-lock requires running npm install which needs network access, I'll plan to request escalated permissions to run npm install mongodb to keep things consistent and then handle adding the test script manually.
 
+* I’m outlining the MongoDB client setup with connection pooling, health checks, stats retrieval, and graceful connection closing. I’m considering how best to track client state for reuse and error handling, ensuring proper concurrency and stability. Also, I realize that to use the requested 'snappy' compressor, we'll need to add the optional @mongodb-js/snappy package to avoid runtime errors, so I’m planning to install that as well.
 
-  Middleware Security
+* I'm weighing how to add unit tests for reconnection simulation since no testing framework is present yet. Using tsx to run Node's built-in node:test in TypeScript seems promising without adding heavy dependencies like vitest. I’m considering creating a tests/mongodb.test.ts with npm run test:mongodb running tsx --test tests/mongodb.test.ts, which should align with instructions and work nicely for the user.
 
-  - Añadí middleware.ts:1 para aplicar CORS con allowlist (https://happy-dreamers.app + previews       
-    *.vercel.app) y devolver 403 si el Origin no es válido; maneja preflights OPTIONS y publica        
-    cabeceras CORS mínimas.
-  Siguientes pasos sugeridos: 1) Actualizar PRODUCTION_ORIGINS en middleware.ts con los dominios reales
-  (incluidas URLs de staging si aplica).
+* I’m planning to add unit tests for the MongoDB library using vitest by mocking the mongodb module and related dependencies like environment and logger. To handle environment vars, I’ll set process.env before dynamic imports or mock the env module to avoid errors. The mock MongoClient will track connection and close calls, simulate reconnection, and handle commands like ping and serverStatus. I’ll organize tests to verify connection reuse, health checks (success and failure), stats retrieval, and reconnection behavior after closing, carefully resetting mocks and modules in each test. This setup ensures isolated, reliable tests without real DB connections.
 
-
-  lib/logger.ts ahora expone logging estructurado con Pino:
-                                                                                                       
-  - Configura el nivel según entorno (production→info, test→silent, default→debug) y oculta campos     
-    sensibles (req.headers.authorization, req.body.password, user.email, user.phone).                  
-  - getCorrelationId toma el x-correlation-id de headers (objetos Headers o plain) y genera un UUID    
-    si falta.                                                                                          
-  - createRequestLogger produce un logger hijo por request con el correlation-id; childLogger(scope)   
-    ayuda a derivar loggers por componente/servicio y mantiene metadatos adicionales.                  
-  - logger expone el root logger por si se requiere el global.                                         
-                                                                                                       
-  Dependencias pino, pino-http y tipos instalados; npm run lint y npm run typecheck pasan.             
-                                                                                                       
-  Siguiente paso sugerido: 1) Integrar createRequestLogger en middleware/API routes para propagar el   
-  correlation-id a los handlers.
-
-
-  I'm weighing how to add unit tests for reconnection simulation since no testing framework is present 
-  yet. Using tsx to run Node's built-in node:test in TypeScript seems promising without adding heavy   
-  dependencies like vitest. I’m considering creating a tests/mongodb.test.ts with npm run test:mongodb 
-  running tsx --test tests/mongodb.test.ts, which should align with instructions and work nicely for   
-  the user.
-
-
-  I'm figuring out how to add mongodb and vitest properly—editing package.json to include them and     
-  adding a test script. Since updating package-lock requires running npm install which needs network   
-  access, I'll plan to request escalated permissions to run npm install mongodb to keep things
-  consistent and then handle adding the test script manually.
-
-
-  I’m outlining the MongoDB client setup with connection pooling, health checks, stats retrieval,      
-  and graceful connection closing. I’m considering how best to track client state for reuse and error  
-  handling, ensuring proper concurrency and stability. Also, I realize that to use the requested       
-  'snappy' compressor, we'll need to add the optional @mongodb-js/snappy package to avoid runtime      
-  errors, so I’m planning to install that as well.
-
-
-  I'm weighing how to add unit tests for reconnection simulation since no testing framework is present 
-  yet. Using tsx to run Node's built-in node:test in TypeScript seems promising without adding heavy   
-  dependencies like vitest. I’m considering creating a tests/mongodb.test.ts with npm run test:mongodb 
-  running tsx --test tests/mongodb.test.ts, which should align with instructions and work nicely for   
-  the user.
-
-
-  I’m planning to add unit tests for the MongoDB library using vitest by mocking the mongodb module and
-  related dependencies like environment and logger. To handle environment vars, I’ll set process.env   
-  before dynamic imports or mock the env module to avoid errors. The mock MongoClient will track       
-  connection and close calls, simulate reconnection, and handle commands like ping and serverStatus.   
-  I’ll organize tests to verify connection reuse, health checks (success and failure), stats retrieval,
-  and reconnection behavior after closing, carefully resetting mocks and modules in each test. This    
-  setup ensures isolated, reliable tests without real DB connections.
-
-
-  I’m examining how vi.resetModules() affects module state and mocks, especially ensuring that mocks   
-  like MockDb.admin().command behave consistently across calls and tests. I’m also checking how        
-  mockState persists or resets with hoisted variables and confirming that vi.fn usage inside mocks is  
-  valid. Finally, I’m thinking about running unit tests with npm run test:unit to verify everything    
-  works as expected.
+* I’m examining how vi.resetModules() affects module state and mocks, especially ensuring that mocks like MockDb.admin().command behave consistently across calls and tests. I’m also checking how mockState persists or resets with hoisted variables and confirming that vi.fn usage inside mocks is valid. Finally, I’m thinking about running unit tests with npm run test:unit to verify everything works as expected.
 
 
   I'm wrapping up by confirming test success and gathering info for the final message. I want to       
@@ -331,4 +245,60 @@ I’m outlining the key changes like removing package-lock references and the .h
                                                                                                        
   1. Si quieres automatizar los chequeos, considera usar lint-staged con npx simple-git-hooks o        
      configurar validaciones desde CI (por ejemplo, ejecutar npm run lint && npm run typecheck en el   
-     pipeline). 
+     pipeline).
+
+
+     I'll refine middleware to decode JWT tokens for protected routes using getToken from NextAuth,       
+  redirecting unauthenticated requests accordingly. I’m planning nuanced requireRole logic that wraps  
+  API handlers, verifying the user’s role with a ranked hierarchy, and sketching detailed integration  
+  tests that mock authentication and database calls to validate access restrictions and environment    
+  flags.
+
+
+  I'm preparing detailed steps to add debugging env vars, define user roles and priorities, and set up 
+  NextAuth configuration with MongoDBAdapter, secure cookies, and session callbacks. I’ll also refactor
+  the environment schema to include ENABLE_DEBUG_ENDPOINTS as a boolean with a proper default and      
+  transformations to parse the env string correctly. This foundation ensures role-based auth and secure
+  session management for the project.
+
+
+  I’m double-checking that environment variables are set before importing modules and that
+  vi.resetModules() properly resets state for fresh imports. I’m verifying mocks for database calls    
+  return the right chained functions like limit and toArray, ensuring tests handle the hashing and     
+  case normalization accurately. I’m also confirming imports such as NextRequest and dependencies like 
+  next-auth are correctly handled. Running the unit tests next will help confirm everything’s wired    
+  up properly.
+
+
+  Hooked up NextAuth with Mongo-backed JWT sessions, role helpers, and admin-only debugging coverage.  
+                                                                                                       
+  Auth Setup                                                                                           
+                                                                                                       
+  - package.json:18 pulled in next-auth and @auth/mongodb-adapter to support the new auth stack.       
+  - lib/env.ts:6 added a typed ENABLE_DEBUG_ENDPOINTS flag so feature checks stay boolean.             
+  - lib/auth/config.ts:23, auth.ts:1, app/api/auth/[...nextauth]/route.ts:1 wired NextAuth to the      
+    shared Mongo client, propagated user roles through JWT/session callbacks, and enforced secure      
+    cookie names in production.                                                                        
+  - lib/auth/roles.ts:1 & lib/auth/require-role.ts:21 defined the role hierarchy plus a reusable API   
+    wrapper that returns 401/403 before calling handlers.                                              
+  - middleware.ts:1 now calls getToken to block protected page prefixes (dashboard/admin/etc.) unless a    valid NextAuth token is present.                                                                   
+                                                                                                       
+  Admin Debug Endpoint                                                                                 
+                                                                                                       
+  - app/api/users/debug/route.ts:1 gates the listing behind admin role + ENABLE_DEBUG_ENDPOINTS, caps  
+    results, and hashes emails to avoid exposing PII.                                                  
+  - lib/mongodb.ts:107 exposed getMongoClient for adapters, and next-auth.d.ts:1 extended typings so   
+    session.user.id/role stay strongly typed.                                                          
+                                                                                                       
+  Tests & Tooling                                                                                      
+                                                                                                       
+  - tests/users-debug.test.ts:1 verifies 401/403/admin success cases and the flag toggle with mocked   
+    auth/DB layers.                                                                                    
+  - vitest.config.ts:1 added path aliases so Vitest resolves @/... imports.                            
+  - Ran npm run test:unit.                                                                             
+                                                                                                       
+  Next:                                                                                                
+                                                                                                       
+  1. Decide on the initial sign-in provider (credentials/email/OAuth) and hook it into                 
+     authConfig.providers.                                                                             
+  2. Build or wire the UI flow (e.g. /login) that matches the new middleware redirects. 

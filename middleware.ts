@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { env } from './lib/env';
 
 const PRODUCTION_ORIGINS = ['https://happy-dreamers.app'];
 const PREVIEW_PATTERN = /^https:\/\/happy-dreamers-.*\.vercel\.app$/i;
@@ -18,12 +20,30 @@ const SECURITY_HEADERS: Record<string, string> = {
   ].join('; '),
 };
 
+const PROTECTED_PATH_PATTERNS = [
+  /^\/dashboard(?:\/|$)/i,
+  /^\/children(?:\/|$)/i,
+  /^\/analytics(?:\/|$)/i,
+  /^\/plans(?:\/|$)/i,
+  /^\/admin(?:\/|$)/i,
+  /^\/settings(?:\/|$)/i,
+];
+
 const isAllowedOrigin = (origin: string) => {
   if (PRODUCTION_ORIGINS.includes(origin)) {
     return true;
   }
   return PREVIEW_PATTERN.test(origin);
 };
+
+const isProtectedPath = (pathname: string) =>
+  PROTECTED_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
+
+const isSkippablePath = (pathname: string) =>
+  pathname.startsWith('/api/') ||
+  pathname.startsWith('/_next/') ||
+  pathname.startsWith('/favicon') ||
+  pathname.startsWith('/assets/');
 
 const applySecurityHeaders = (headers: Headers) => {
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
@@ -45,6 +65,10 @@ const applyCorsHeaders = (headers: Headers, origin: string, request: NextRequest
 };
 
 export function middleware(request: NextRequest) {
+  return handleRequest(request);
+}
+
+const handleRequest = async (request: NextRequest) => {
   const origin = request.headers.get('origin');
   const responseHeaders = new Headers();
 
@@ -71,6 +95,30 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  if (
+    request.method !== 'OPTIONS' &&
+    !isSkippablePath(request.nextUrl.pathname) &&
+    isProtectedPath(request.nextUrl.pathname)
+  ) {
+    const token = await getToken({
+      req: request,
+      secret: env.NEXTAUTH_SECRET,
+    });
+
+    if (!token) {
+      const signInUrl = new URL('/api/auth/signin', request.url);
+      signInUrl.searchParams.set('callbackUrl', request.nextUrl.pathname + request.nextUrl.search);
+
+      const redirectResponse = NextResponse.redirect(signInUrl);
+
+      responseHeaders.forEach((value, key) => {
+        redirectResponse.headers.set(key, value);
+      });
+
+      return redirectResponse;
+    }
+  }
+
   const response = NextResponse.next({
     request,
   });
@@ -80,7 +128,7 @@ export function middleware(request: NextRequest) {
   });
 
   return response;
-}
+};
 
 export const config = {
   matcher: '/:path*',

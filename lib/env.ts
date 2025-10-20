@@ -9,6 +9,10 @@ const envSchema = z
     GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY: requiredString('GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY'),
     MONGODB_URI: requiredString('MONGODB_URI'),
     NEXTAUTH_SECRET: requiredString('NEXTAUTH_SECRET'),
+    ENABLE_DEBUG_ENDPOINTS: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
   })
   .passthrough();
 
@@ -44,6 +48,7 @@ export const loadEnv = () => {
     GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY: parsed.data.GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY,
     MONGODB_URI: parsed.data.MONGODB_URI,
     NEXTAUTH_SECRET: parsed.data.NEXTAUTH_SECRET,
+    ENABLE_DEBUG_ENDPOINTS: parsed.data.ENABLE_DEBUG_ENDPOINTS,
   } as const;
 
   return env;

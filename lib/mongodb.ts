@@ -104,6 +104,8 @@ export const getDb = async (database?: string) => {
   return cachedDb;
 };
 
+export const getMongoClient = () => connectClient();
+
 export type HealthCheckResult =
   | { ok: true; latencyMs: number }
   | { ok: false; error: string };
