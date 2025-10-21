@@ -1,24 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { env } from './lib/env';
+import { createRequestLogger, getCorrelationId } from './lib/logger';
 
-const PRODUCTION_ORIGINS = ['https://happy-dreamers.app'];
+const PRODUCTION_ORIGINS = ['https://happydreamers.mx'];
 const PREVIEW_PATTERN = /^https:\/\/happy-dreamers-.*\.vercel\.app$/i;
 
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
-const SECURITY_HEADERS: Record<string, string> = {
+const buildContentSecurityPolicy = () => {
+  const scriptSources = ["'self'"];
+  const connectSources = ["'self'"];
+
+  if (process.env.NODE_ENV !== 'production') {
+    scriptSources.push("'unsafe-inline'", "'unsafe-eval'");
+    connectSources.push('ws:');
+  }
+
+  return [
+    "default-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    `script-src ${scriptSources.join(' ')}`,
+    "img-src 'self' data:",
+    `connect-src ${connectSources.join(' ')}`,
+  ].join('; ');
+};
+
+const getSecurityHeaders = (): Record<string, string> => ({
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "script-src 'self'",
-    "img-src 'self' data:",
-    "connect-src 'self'",
-  ].join('; '),
-};
+  'Content-Security-Policy': buildContentSecurityPolicy(),
+});
 
 const PROTECTED_PATH_PATTERNS = [
   /^\/dashboard(?:\/|$)/i,
@@ -46,7 +59,8 @@ const isSkippablePath = (pathname: string) =>
   pathname.startsWith('/assets/');
 
 const applySecurityHeaders = (headers: Headers) => {
-  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+  const securityHeaders = getSecurityHeaders();
+  Object.entries(securityHeaders).forEach(([key, value]) => {
     headers.set(key, value);
   });
 };
@@ -71,11 +85,21 @@ export function middleware(request: NextRequest) {
 const handleRequest = async (request: NextRequest) => {
   const origin = request.headers.get('origin');
   const responseHeaders = new Headers();
+  const correlationId = getCorrelationId(request.headers);
+
+  request.headers.set('x-correlation-id', correlationId);
+  responseHeaders.set('x-correlation-id', correlationId);
+
+  const log = createRequestLogger(correlationId, {
+    path: request.nextUrl.pathname,
+    method: request.method,
+  });
 
   applySecurityHeaders(responseHeaders);
 
   if (origin && origin !== request.nextUrl.origin) {
     if (!isAllowedOrigin(origin)) {
+      log.warn({ origin }, 'blocked request from forbidden origin');
       return NextResponse.json(
         { error: 'Forbidden origin' },
         {
@@ -88,6 +112,7 @@ const handleRequest = async (request: NextRequest) => {
     applyCorsHeaders(responseHeaders, origin, request);
 
     if (request.method === 'OPTIONS') {
+      log.debug({ origin }, 'handled preflight request');
       return new NextResponse(null, {
         status: 204,
         headers: responseHeaders,
@@ -106,6 +131,7 @@ const handleRequest = async (request: NextRequest) => {
     });
 
     if (!token) {
+      log.info('unauthenticated request redirected to sign-in');
       const signInUrl = new URL('/api/auth/signin', request.url);
       signInUrl.searchParams.set('callbackUrl', request.nextUrl.pathname + request.nextUrl.search);
 
@@ -126,6 +152,8 @@ const handleRequest = async (request: NextRequest) => {
   responseHeaders.forEach((value, key) => {
     response.headers.set(key, value);
   });
+
+  log.debug('request allowed to proceed');
 
   return response;
 };

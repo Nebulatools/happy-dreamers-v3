@@ -25,14 +25,23 @@ const redactEmail = (email: string | null | undefined) => {
   return createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0, 12);
 };
 
-const handler = requireRole('admin')(async (_request, _context) => {
+const obfuscateId = (id: unknown) =>
+  createHash('sha256').update(String(id)).digest('hex').slice(0, 12);
+
+const handler = requireRole('admin')(async (request, context) => {
+  const { log, correlationId } = context;
+  log.info('debug users endpoint invoked');
+
   if (!env.ENABLE_DEBUG_ENDPOINTS) {
-    return NextResponse.json(
+    log.warn('debug endpoints are disabled');
+    const response = NextResponse.json(
       { error: 'Not Found' },
       {
         status: 404,
       },
     );
+    response.headers.set('x-correlation-id', correlationId);
+    return response;
   }
 
   const db = await getDb();
@@ -43,17 +52,23 @@ const handler = requireRole('admin')(async (_request, _context) => {
     .limit(50)
     .toArray();
 
+  log.debug({ count: users.length }, 'fetched users from debug endpoint');
+
   const sanitizedUsers = users.map((user) => ({
-    id: String(user._id),
+    id: obfuscateId(user._id),
     role: isUserRole(user.role) ? (user.role as UserRole) : 'user',
     emailHash: redactEmail(user.email ?? null),
     createdAt: user.createdAt ?? null,
   }));
 
-  return NextResponse.json({
+  log.info({ count: sanitizedUsers.length }, 'returning sanitized debug users');
+
+  const response = NextResponse.json({
     users: sanitizedUsers,
     count: sanitizedUsers.length,
   });
+  response.headers.set('x-correlation-id', correlationId);
+  return response;
 });
 
 export const GET = handler;

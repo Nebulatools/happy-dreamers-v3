@@ -1,6 +1,9 @@
+import { loadEnvConfig } from '@next/env';
 import { EnvValidationError, getEnv } from '../lib/env';
 
 const main = () => {
+  loadEnvConfig(process.cwd());
+
   try {
     const validatedEnv = getEnv();
     const presentKeys = Object.keys(validatedEnv);

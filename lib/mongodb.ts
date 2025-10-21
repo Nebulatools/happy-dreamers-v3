@@ -16,14 +16,24 @@ const resolveCompressors = (): Exclude<MongoClientOptions['compressors'], string
 
   for (const compressor of DEFAULT_COMPRESSORS) {
     if (compressor === 'snappy') {
-      try {
-        require.resolve('@mongodb-js/snappy');
+      const candidates = ['@mongodb-js/snappy', 'snappy'];
+      let available = false;
+
+      for (const candidate of candidates) {
+        try {
+          require.resolve(candidate);
+          available = true;
+          break;
+        } catch (error) {
+          log.debug({ candidate, reason: (error as Error).message }, 'snappy candidate missing');
+        }
+      }
+
+      if (available) {
+        log.info('snappy compressor enabled');
         negotiated.push(compressor);
-      } catch (error) {
-        log.warn(
-          { reason: (error as Error).message },
-          'snappy compressor unavailable, falling back to remaining options',
-        );
+      } else {
+        log.warn('snappy compressor unavailable, falling back to remaining options');
       }
       continue;
     }

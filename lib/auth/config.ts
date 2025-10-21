@@ -1,5 +1,4 @@
 import { MongoDBAdapter } from '@auth/mongodb-adapter';
-import type { NextAuthConfig } from 'next-auth';
 import { env } from '../env';
 import { getMongoClient } from '../mongodb';
 import { USER_ROLES, type UserRole } from './roles';
@@ -20,7 +19,13 @@ const baseCookieOptions = {
 
 const clientPromise = getMongoClient();
 
-export const authConfig: NextAuthConfig = {
+type NextAuthFn = (typeof import('next-auth/next'))['default'];
+type NextAuthOptions = Parameters<NextAuthFn>[2];
+type Callbacks = NonNullable<NextAuthOptions['callbacks']>;
+type JwtCallbackParams = Parameters<NonNullable<Callbacks['jwt']>>[0];
+type SessionCallbackParams = Parameters<NonNullable<Callbacks['session']>>[0];
+
+export const authConfig: NextAuthOptions = {
   adapter: MongoDBAdapter(clientPromise),
   session: {
     strategy: 'jwt',
@@ -41,7 +46,7 @@ export const authConfig: NextAuthConfig = {
     },
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: JwtCallbackParams) {
       if (user) {
         token.role = resolveRole((user as { role?: unknown })?.role);
       } else if (!isUserRole(token.role)) {
@@ -50,10 +55,17 @@ export const authConfig: NextAuthConfig = {
 
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: SessionCallbackParams) {
       if (session.user) {
-        session.user.id = (token.sub as string | undefined) ?? session.user.id ?? '';
-        session.user.role = resolveRole(token.role);
+        const user = session.user as typeof session.user & {
+          id?: string;
+          role?: UserRole;
+        };
+        session.user = {
+          ...user,
+          id: (token.sub as string | undefined) ?? user.id ?? '',
+          role: resolveRole(token.role),
+        } as typeof session.user;
       }
 
       return session;

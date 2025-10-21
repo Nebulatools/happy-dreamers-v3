@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 import { middleware } from '../middleware';
 
@@ -12,12 +12,16 @@ const request = new NextRequest(url, {
   },
 });
 
-const response = middleware(request);
+const main = async () => {
+  const response: NextResponse = await middleware(request);
 
-assert.equal(
-  response.status,
-  403,
-  `Expected middleware to block disallowed origin "${disallowedOrigin}" with 403.`,
-);
+  assert.equal(
+    response.status,
+    403,
+    `Expected middleware to block disallowed origin "${disallowedOrigin}" with 403.`,
+  );
 
-console.info('✔ Middleware blocks disallowed origin with 403');
+  console.info('OK Middleware blocks disallowed origin with 403');
+};
+
+void main();

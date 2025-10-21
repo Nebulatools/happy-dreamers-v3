@@ -23,6 +23,7 @@ const setRequiredEnv = () => {
 };
 
 const createRequest = () => new NextRequest('http://localhost/api/users/debug');
+const createContext = () => ({ params: Promise.resolve({}) });
 
 const buildSession = (role: 'user' | 'pro' | 'admin') => ({
   user: {
@@ -33,6 +34,9 @@ const buildSession = (role: 'user' | 'pro' | 'admin') => ({
   },
   expires: new Date(Date.now() + 60_000).toISOString(),
 });
+
+const obfuscateId = (value: string) =>
+  createHash('sha256').update(value).digest('hex').slice(0, 12);
 
 describe('GET /api/users/debug', () => {
   beforeEach(() => {
@@ -47,7 +51,7 @@ describe('GET /api/users/debug', () => {
 
     const { GET } = await import('@/app/api/users/debug/route');
 
-    const response = await GET(createRequest());
+    const response = await GET(createRequest(), createContext());
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: 'Unauthorized' });
@@ -59,7 +63,7 @@ describe('GET /api/users/debug', () => {
 
     const { GET } = await import('@/app/api/users/debug/route');
 
-    const response = await GET(createRequest());
+    const response = await GET(createRequest(), createContext());
 
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: 'Forbidden' });
@@ -95,7 +99,7 @@ describe('GET /api/users/debug', () => {
 
     const { GET } = await import('@/app/api/users/debug/route');
 
-    const response = await GET(createRequest());
+    const response = await GET(createRequest(), createContext());
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -106,13 +110,13 @@ describe('GET /api/users/debug', () => {
     expect(data.count).toBe(2);
     expect(data.users).toEqual([
       {
-        id: '507f1f77bcf86cd799439011',
+        id: obfuscateId('507f1f77bcf86cd799439011'),
         role: 'admin',
         emailHash: createHash('sha256').update('alice@example.com').digest('hex').slice(0, 12),
         createdAt: '2024-01-01T00:00:00.000Z',
       },
       {
-        id: '507f1f77bcf86cd799439012',
+        id: obfuscateId('507f1f77bcf86cd799439012'),
         role: 'user',
         emailHash: null,
         createdAt: null,
@@ -126,7 +130,7 @@ describe('GET /api/users/debug', () => {
 
     const { GET } = await import('@/app/api/users/debug/route');
 
-    const response = await GET(createRequest());
+    const response = await GET(createRequest(), createContext());
     expect(response.status).toBe(404);
   });
 });
